@@ -1,0 +1,489 @@
+%% Proyecto - Procesamiento de Señales
+ % Hector Klée            
+ % Carné 17118
+ % Juan Diego Castillo
+ % Carné 17074
+ % Sección 21 - Mesa 6
+%% Filtros
+% Recuperación de datos 
+file_sel = 1;
+if (file_sel == 1)
+    [x, Fs] = audioread('A_Beautiful_Lie-30_Seconds_to_Mars.wav');
+elseif (file_sel == 2)
+    [x, Fs] = audioread('Best_Part_Of_Me-Ed_Sheeran.wav');
+elseif (file_sel == 3)
+    [x, Fs] = audioread('Someone_You_Loved-Lewis_Capaldi.wav');
+elseif (file_sel == 4)
+    [x, Fs] = audioread('The_Kill-30_Seconds_to_Mars.wav');
+elseif (file_sel == 5)
+    [x, Fs] = audioread('newWave.wav');
+end
+[row,col] = size(x);
+if (col == 1)
+    ch1_x = x(:,1);
+    ch2_x = 0;
+elseif (col == 2)
+    ch1_x = x(:,1);
+    ch2_x = x(:,2);
+end
+% Definición del Periodo de Muestreo
+Ts = 1/Fs;
+% Reproducción de la entrada
+centered_x = x - repmat(mean(x), size(x,1), 1);
+maxx = max(abs(centered_x(:)));
+scaled_centered_x = centered_x ./ maxx;
+player_x = audioplayer (scaled_centered_x, Fs);
+%play (player_x);
+%stop (player_x);
+%% Diseño de Filtro 1 por Método Indirecto
+syms s z
+% Prototipo analógico
+H_1(s) = 1 / (s^2+sqrt(2)*s+1);
+% Frecuencia y período de muestreo
+Fl_1 = 73;
+Fh_1 = 101;
+if Fl_1 > Fh_1
+    disp('Error in first filter. First cut frequency bigger than second')
+elseif Fl_1 < Fh_1
+    % Frecuencias de corte digitales requeridas
+    wl_1 = (2*pi*Fl_1)*Ts;
+    wh_1 = (2*pi*Fh_1)*Ts;
+    % Encontramos las frecuencias analógicas deseadas Wl y Wu mediante 
+    % frequency pre-warping
+    Wl_1 = (2/Ts)*tan((wl_1)/2);
+    Wh_1 = (2/Ts)*tan((wh_1)/2);
+    % Generamos el filtro deseado a partir del prototipo
+    Hbpf_a_1(s) = H_1(1*((s^2+Wl_1*Wh_1)/((Wh_1-Wl_1)*s)));
+    % Generamos el filtro digital mediante la transformación bilineal
+    Hbpf_1(z) = Hbpf_a_1((2/Ts)*((z-1)/(z+1)));
+    % Obtenemos el numerador y denominador
+    [N_1, D_1] = numden(simplifyFraction(Hbpf_1));
+    % Obtenemos los coeficientes del numerador y denominador
+    b_1 = fliplr(double(coeffs(N_1)));
+    a_1 = fliplr(double(coeffs(D_1)));
+    % Normalizamos
+    b_1 = b_1 / a_1(1);
+    a_1 = a_1 / a_1(1);
+    % Se observa la función de transferencia
+    Hf_1 = tf(b_1, a_1, Ts);
+    % Se observa el filtro diseñado
+    fvtool(b_1,a_1,'Fs',Fs);
+    % Código de Ecuacuón de Diferencias comentado a continuación
+    %{    
+    % Aplicación de Ecuación de Diferencias
+    N = length(x);
+    ch1_y_1 = zeros(N, 1);  
+    ch2_y_1 = zeros(N, 1);
+    % Definición de variables recurrentes
+    % Recurrencias de x para el primer canal del filto 1
+    xn1_11 = 0;
+    xn2_11 = 0;
+    xn3_11 = 0;
+    xn4_11 = 0;
+    xn5_11 = 0;
+    xn6_11 = 0;
+    xn7_11 = 0;
+    xn8_11 = 0;
+    % Recurrencias de x para el primer canal del filto 2
+    xn1_12 = 0;
+    xn2_12 = 0;
+    xn3_12 = 0;
+    xn4_12 = 0;
+    xn5_12 = 0;
+    xn6_12 = 0;
+    xn7_12 = 0;
+    xn8_12 = 0;
+    % Recurrencias de y para el primer canal del filto 1
+    yn1_11 = 0;
+    yn2_11 = 0;
+    yn3_11 = 0;
+    yn4_11 = 0;
+    yn5_11 = 0;
+    yn6_11 = 0;
+    yn7_11 = 0;
+    yn8_11 = 0;
+    % Recurrencias de y para el primer canal del filto 2
+    yn1_12 = 0;
+    yn2_12 = 0;
+    yn3_12 = 0;
+    yn4_12 = 0;
+    yn5_12 = 0;
+    yn6_12 = 0;
+    yn7_12 = 0;
+    yn8_12 = 0;
+    % Ciclo for para muestrear los datos de la ecuación de diferencias
+    %*************************************************************************
+    %------------------------ PRIMER CANAL -----------------------------------
+    %*************************************************************************
+    for n = 1:N
+        ch1_y_1(n) = b(1)*ch1_x(n) + b(2)*xn1_11 + b(3)*xn2_11 + b(4)*xn3_11 + ....
+            b(5)*xn4_11 +b(6)*xn5_11 + b(7)*xn6_11 + b(8)*xn7_11 + b(9)*xn8_11 - ....
+            a(2)*yn1_11 - a(3)*yn2_11 - a(4)*yn3_11 - a(5)*yn4_11 - a(6)*yn5_11 - ...
+            a(7)*yn6_11 - a(8)*yn7_11 - a(9)*yn8_11;
+        % Actualización de variables de x
+        xn9 = xn8_11;
+        xn8_11 = xn7_11;
+        xn7_11 = xn6_11;
+        xn6_11 = xn5_11;
+        xn5_11 = xn4_11;
+        xn4_11 = xn3_11;
+        xn3_11 = xn2_11;
+        xn2_11 = xn1_11;
+        xn1_11 = ch1_x(n);
+        % Actualización de variables de y
+        yn8_12 = yn7_12;
+        yn7_12 = yn6_12;
+        yn6_12 = yn5_12;
+        yn5_12 = yn4_12;
+        yn4_12 = yn3_12;
+        yn3_12 = yn2_12;
+        yn2_12 = yn1_12;
+        yn1_12 = ch2_y_1(n);
+    end
+    %*************************************************************************
+    %------------------------ SEGUNDO CANAL ----------------------------------
+    %*************************************************************************
+    for n = 1:N
+        ch2_y_1(n) = b(1)*ch1_x(n) + b(2)*xn1_12 + b(3)*xn2_12 + b(4)*xn3_12 + ....
+            b(5)*xn4_12 +b(6)*xn5_12 + b(7)*xn6_12 + b(8)*xn7_12 + b(9)*xn8_12 - ....
+            a(2)*yn1_12 - a(3)*yn2_12 - a(4)*yn3_12 - a(5)*yn4_12 - a(6)*yn5_12 - ...
+            a(7)*yn6_12 - a(8)*yn7_12 - a(9)*yn8_12;
+        % Actualización de variables de x
+        xn9 = xn8_12;
+        xn8_12 = xn7_12;
+        xn7_12 = xn6_12;
+        xn6_12 = xn5_12;
+        xn5_12 = xn4_12;
+        xn4_12 = xn3_12;
+        xn3_12 = xn2_12;
+        xn2_12 = xn1_12;
+        xn1_12 = ch2_x(n);
+        % Actualización de variables de y
+        yn8_12 = yn7_12;
+        yn7_12 = yn6_12;
+        yn6_12 = yn5_12;
+        yn5_12 = yn4_12;
+        yn4_12 = yn3_12;
+        yn3_12 = yn2_12;
+        yn2_12 = yn1_12;
+        yn1_12 = ch2_y_1(n);
+    end
+    % Concatenación de ambos canales para obtener una señal stereo
+    y_1 = [ch1_y_1, ch2_y_1];
+    %}
+    % Filtrado de Señal
+    y_1 = filter(b_1, a_1, x);
+
+    if (col == 1)
+        ch1_y_1 = y_1(:,1);
+        ch2_y_1 = 0;
+    elseif (col == 2)
+        ch1_y_1 = y_1(:,1);
+        ch2_y_1 = y_1(:,2);
+    end
+
+    % Reproducción de la salida
+    centered_y_1 = y_1 - repmat(mean(y_1), size(y_1,1), 1);
+    maxy_1 = max(abs(centered_y_1(:)));
+    scaled_centered_y_1 = centered_y_1 ./ maxy_1;
+    player_y_1 = audioplayer (scaled_centered_y_1, Fs);
+    %play (player_y_1);
+    %stop (player_y_1);
+    %% Graficas de filtrado para Primera Señal
+    %Canal 1 de x
+    yX1_x1 = fft(ch1_x);
+    yX1_bi_x1 = abs(yX1_x1/length(ch1_x));
+    yX1_uni_x1 = yX1_bi_x1(1:length(ch1_x)/2+1);
+    yX1_uni_x1(2:end-1) = 2*yX1_uni_x1(2:end-1);
+    axis_x_2 = Fs*(0:(length(ch1_x)/2))/length(ch1_x);
+    %Canal 2 de x
+    yX1_x2 = fft(ch2_x);
+    yX1_bi_x2 = abs(yX1_x2/length(ch2_x));
+    yX1_uni_x2 = yX1_bi_x2(1:length(ch2_x)/2+1);
+    yX1_uni_x2(2:end-1) = 2*yX1_uni_x2(2:end-1);
+    %Canal 1 de y_1
+    yX1_y1_1 = fft(ch1_y_1);
+    yX1_bi_y1_1 = abs(yX1_y1_1/length(ch1_y_1));
+    yX1_uni_y1_1 = yX1_bi_y1_1(1:length(ch1_y_1)/2+1);
+    yX1_uni_y1_1(2:end-1) = 2*yX1_uni_y1_1(2:end-1);
+    %Canal 2 de y_1
+    yX1_y2_1 = fft(ch2_y_1);
+    yX1_bi_y2_1 = abs(yX1_y2_1/length(ch2_y_1));
+    yX1_uni_y2_1 = yX1_bi_y2_1(1:length(ch2_y_1)/2+1);
+    yX1_uni_y2_1(2:end-1) = 2*yX1_uni_y2_1(2:end-1);
+
+    %Gráfica
+    if col == 1
+        figure(2);
+        clf;
+        subplot(2, 1, 1);
+        stem(axis_x_2, yX1_uni_x1);
+        axis([0 2205 0 0.2])
+        %plot(axis_x_2(1:22050), yX1_uni_x1(1:22050));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de x.');
+        subplot(2, 1, 2);
+        stem(axis_x_2, yX1_uni_y1_1);
+        axis([0 2205 0 0.05])
+        %plot(axis_x_2(1:22050), yX1_uni_y1_1(1:22050));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de y_1.');
+    elseif col == 2
+        figure(2);
+        clf;
+        subplot(2, 2, 1);
+        plot(axis_x_2(1:44100), yX1_uni_x1(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de x.');
+        subplot(2, 2, 2);
+        plot(axis_x_2(1:44100), yX1_uni_x2(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 2 de x.');
+        subplot(2, 2, 3);
+        plot(axis_x_2(1:44100), yX1_uni_y1_1(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de y_1.');
+        subplot(2, 2, 4);
+        plot(axis_x_2(1:44100), yX1_uni_y2_1(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 2 de y_1.');
+    end
+end
+%% Diseño de Filtro 2 por Método Indirecto
+syms s z
+% Prototipo analógico
+H_2(s) = 1 / (s^2+sqrt(2)*s+1);
+% Frecuencia y período de muestreo
+Fl_2 = 173;
+Fh_2 = 580;
+if Fl_2 > Fh_2
+    disp('Error in second filter. First cut frequency bigger than second')
+elseif Fl_2 < Fh_2
+    % Frecuencias de corte digitales requeridas
+    wl_2 = (2*pi*Fl_2)*Ts;
+    wh_2 = (2*pi*Fh_2)*Ts;
+    % Encontramos las frecuencias analógicas deseadas Wl y Wu mediante 
+    % frequency pre-warping
+    Wl_2 = (2/Ts)*tan((wl_2)/2);
+    Wh_2 = (2/Ts)*tan((wh_2)/2);
+    % Generamos el filtro deseado a partir del prototipo
+    Hbpf_a_2(s) = H_2(1*((s^2+Wl_2*Wh_2)/((Wh_2-Wl_2)*s)));
+    % Generamos el filtro digital mediante la transformación bilineal
+    Hbpf_2(z) = Hbpf_a_2((2/Ts)*((z-1)/(z+1)));
+    % Obtenemos el numerador y denominador
+    [N_2, D_2] = numden(simplifyFraction(Hbpf_2));
+    % Obtenemos los coeficientes del numerador y denominador
+    b_2 = fliplr(double(coeffs(N_2)));
+    a_2 = fliplr(double(coeffs(D_2)));
+    % Normalizamos
+    b_2 = b_2 / a_2(1);
+    a_2 = a_2 / a_2(1);
+    % Se observa la función de transferencia
+    Hf_2 = tf(b_2, a_2, Ts);
+    % Se observa el filtro diseñado
+    fvtool(b_2,a_2,'Fs',Fs);
+    % Código de Ecuacuón de Diferencias comentado a continuación
+    %{    
+    % Aplicación de Ecuación de Diferencias
+    N2 = length(x);
+    ch1_y_2 = zeros(N2, 1);  
+    ch2_y_2 = zeros(N2, 1);
+    %Definición de variables recurrentes
+    % Recurrencias de x para el primer canal del filto 2
+    xn1_21 = 0;
+    xn2_21 = 0;
+    xn3_21 = 0;
+    xn4_21 = 0;
+    xn5_21 = 0;
+    xn6_21 = 0;
+    xn7_21 = 0;
+    xn8_21 = 0;
+    % Recurrencias de x para el segundo canal del filto 2
+    xn1_22 = 0;
+    xn2_22 = 0;
+    xn3_22 = 0;
+    xn4_22 = 0;
+    xn5_22 = 0;
+    xn6_22 = 0;
+    xn7_22 = 0;
+    xn8_22 = 0;
+    % Recurrencias de y para el primer canal del filto 2
+    yn1_21 = 0;
+    yn2_21 = 0;
+    yn3_21 = 0;
+    yn4_21 = 0;
+    yn5_21 = 0;
+    yn6_21 = 0;
+    yn7_21 = 0;
+    yn8_21 = 0;
+    % Recurrencias de y para el segundo canal del filto 2
+    yn1_22 = 0;
+    yn2_22 = 0;
+    yn3_22 = 0;
+    yn4_22 = 0;
+    yn5_22 = 0;
+    yn6_22 = 0;
+    yn7_22 = 0;
+    yn8_22 = 0;
+    % Ciclos for para muestrear los datos de la ecuación de diferencias
+    %*************************************************************************
+    %------------------------ PRIMER CANAL -----------------------------------
+    %*************************************************************************
+    for n = 1:N2
+        % Ecuación de Diferencias
+        ch1_y_2(n) = (b2(1)*ch1_x(n) + b2(2)*xn1_21 + b2(3)*xn2_21 + b2(4)*xn3_21 + ....
+            b2(5)*xn4_21 +b2(6)*xn5_21 + b2(7)*xn6_21 + b2(8)*xn7_21 + b2(9)*xn8_21 - ....
+            a2(2)*yn1_21 - a2(3)*yn2_21 - a2(4)*yn3_21 - a2(5)*yn4_21 - a2(6)*yn5_21 - ...
+            a2(7)*yn6_21 - a2(8)*yn7_21 - a2(9)*yn8_21);
+        % Actualización de variables de x
+        xn9 = xn8_21;
+        xn8_21 = xn7_21;
+        xn7_21 = xn6_21;
+        xn6_21 = xn5_21;
+        xn5_21 = xn4_21;
+        xn4_21 = xn3_21;
+        xn3_21 = xn2_21;
+        xn2_21 = xn1_21;
+        xn1_21 = ch1_x(n);
+        % Actualización de variables de y
+        yn8_21 = yn7_21;
+        yn7_21 = yn6_21;
+        yn6_21 = yn5_21;
+        yn5_21 = yn4_21;
+        yn4_21 = yn3_21;
+        yn3_21 = yn2_21;
+        yn2_21 = yn1_21;
+        yn1_21 = ch1_y_2(n);
+    end
+    %*************************************************************************
+    %------------------------ SEGUNDO CANAL ----------------------------------
+    %*************************************************************************
+    for n = 1:N2
+        ch2_y_2(n) = (b2(1)*ch1_x(n) + b2(2)*xn1_22 + b2(3)*xn2_22 + b2(4)*xn3_22 + ....
+            b2(5)*xn4_22 +b2(6)*xn5_22 + b2(7)*xn6_22 + b2(8)*xn7_22 + b2(9)*xn8_22 - ....
+            a2(2)*yn1_22 - a2(3)*yn2_22 - a2(4)*yn3_22 - a2(5)*yn4_22 - a2(6)*yn5_22 - ...
+            a2(7)*yn6_22 - a2(8)*yn7_22 - a2(9)*yn8_22);
+        % Actualización de variables de x
+        xn9 = xn8_22;
+        xn8_22 = xn7_22;
+        xn7_22 = xn6_22;
+        xn6_22 = xn5_22;
+        xn5_22 = xn4_22;
+        xn4_22 = xn3_22;
+        xn3_22 = xn2_22;
+        xn2_22 = xn1_22;
+        xn1_22 = ch2_x(n);
+        % Actualización de variables de y
+        yn8_21 = yn7_21;
+        yn7_21 = yn6_21;
+        yn6_21 = yn5_21;
+        yn5_21 = yn4_21;
+        yn4_21 = yn3_21;
+        yn3_21 = yn2_21;
+        yn2_21 = yn1_21;
+        yn1_21 = ch1_y_2(n);
+    end
+    % Concatenación de ambos canales para crear una señal de salida stereo
+    y_2 = [ch1_y_2, ch2_y_2];
+    %}
+    % Filtrado de Señal
+    y_2 = filter(b_2, a_2, x);
+
+    if (col == 1)
+        ch1_y_2 = y_2(:,1);
+        ch2_y_2 = 0;
+    elseif (col == 2)
+        ch1_y_2 = y_2(:,1);
+        ch2_y_2 = y_2(:,2);
+    end
+
+    % Reproducción de la salida
+    centered_y_2 = y_2 - repmat(mean(y_2), size(y_2,1), 1);
+    maxy_2 = max(abs(centered_y_2(:)));
+    scaled_centered_y_2 = centered_y_2 ./ maxy_2;
+    player_y_2 = audioplayer (scaled_centered_y_2, Fs);
+    %play (player_y_2);
+    %stop (player_y_2);
+    %% Graficas de filtrado para Segunda Señal
+    %Canal 1 de x
+    yX1_x1 = fft(ch1_x);
+    yX1_bi_x1 = abs(yX1_x1/length(ch1_x));
+    yX1_uni_x1 = yX1_bi_x1(1:length(ch1_x)/2+1);
+    yX1_uni_x1(2:end-1) = 2*yX1_uni_x1(2:end-1);
+    axis_x_2 = Fs*(0:(length(ch1_x)/2))/length(ch1_x);
+    %Canal 2 de x
+    yX1_x2 = fft(ch2_x);
+    yX1_bi_x2 = abs(yX1_x2/length(ch2_x));
+    yX1_uni_x2 = yX1_bi_x2(1:length(ch2_x)/2+1);
+    yX1_uni_x2(2:end-1) = 2*yX1_uni_x2(2:end-1);
+    %Canal 1 de y_2
+    yX1_y1_2 = fft(ch1_y_2);
+    yX1_bi_y1_2 = abs(yX1_y1_2/length(ch1_y_2));
+    yX1_uni_y1_2 = yX1_bi_y1_2(1:length(ch1_y_2)/2+1);
+    yX1_uni_y1_2(2:end-1) = 2*yX1_uni_y1_2(2:end-1);
+    %Canal 2 de y_2
+    yX1_y2_2 = fft(ch2_y_2);
+    yX1_bi_y2_2 = abs(yX1_y2_2/length(ch2_y_2));
+    yX1_uni_y2_2 = yX1_bi_y2_2(1:length(ch2_y_2)/2+1);
+    yX1_uni_y2_2(2:end-1) = 2*yX1_uni_y2_2(2:end-1);
+    
+    if col == 1
+        %Gráfica
+        figure(4);
+        clf;
+        subplot(2, 1, 1);
+        stem(axis_x_2, yX1_uni_x1);
+        axis([0 2205 0 0.2])
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de x.');
+        subplot(2, 1, 2);
+        stem(axis_x_2, yX1_uni_y1_2);
+        axis([0 2205 0 0.05])
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de y_2.');
+    elseif col == 2
+        %Gráfica
+        figure(4);
+        clf;
+        subplot(2, 2, 1);
+        plot(axis_x_2(1:44100), yX1_uni_x1(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de x.');
+        subplot(2, 2, 2);
+        plot(axis_x_2(1:44100), yX1_uni_x2(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 2 de x.');
+        subplot(2, 2, 3);
+        plot(axis_x_2(1:44100), yX1_uni_y1_2(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 1 de y_2.');
+        subplot(2, 2, 4);
+        plot(axis_x_2(1:44100), yX1_uni_y2_2(1:44100));
+        grid on;
+        xlabel('Frecuencia (Hz)');
+        ylabel('Amplitud');
+        title('Espectro unilateral del canal 2 de y_2.');
+    end
+end
